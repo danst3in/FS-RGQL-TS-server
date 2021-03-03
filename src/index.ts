@@ -1,11 +1,9 @@
-import "reflect-metadata";
 import { MikroORM } from "@mikro-orm/core";
-import { __prod__ } from "./constants";
-import { Post } from "./entities/Post";
-import mikroConfig from "./mikro-orm.config";
-import express from "express";
 import { ApolloServer } from "apollo-server-express";
+import express from "express";
+import "reflect-metadata";
 import { buildSchema } from "type-graphql";
+import mikroConfig from "./mikro-orm.config";
 import { HelloResolver } from "./resolvers/hello";
 import { PostResolver } from "./resolvers/post";
 
@@ -41,18 +39,18 @@ const main = async () => {
 
   const PORT = 4000;
 
-  //*
-  //* My boilerplate error-handler
-  app.use((err, req, res, next) => {
-    const defaultErr = {
-      log: "Express error handler caught unknown middleware error",
-      status: 400,
-      message: { err: "An error occurred" },
-    };
-    const errorObj = Object.assign({}, defaultErr, err);
-    console.log(errorObj.log);
-    return res.status(errorObj.status).json(errorObj.message);
-  });
+  // //*
+  // //* My boilerplate error-handler
+  // app.use((err, req, res, next) => {
+  //   const defaultErr = {
+  //     log: "Express error handler caught unknown middleware error",
+  //     status: 400,
+  //     message: { err: "An error occurred" },
+  //   };
+  //   const errorObj = Object.assign({}, defaultErr, err);
+  //   console.log(errorObj.log);
+  //   return res.status(errorObj.status).json(errorObj.message);
+  // });
 
   // The `listen` method launches a web server.
   app.listen({ port: PORT }, () =>
