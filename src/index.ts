@@ -1,62 +1,81 @@
-import "reflect-metadata";
 import { MikroORM } from "@mikro-orm/core";
-import { __prod__ } from "./constants";
-import { Post } from "./entities/Post";
-import mikroConfig from "./mikro-orm.config";
-import express from "express";
 import { ApolloServer } from "apollo-server-express";
+import express from "express";
+import "reflect-metadata";
 import { buildSchema } from "type-graphql";
+import mikroConfig from "./mikro-orm.config";
 import { HelloResolver } from "./resolvers/hello";
 import { PostResolver } from "./resolvers/post";
+import { UserResolver } from "./resolvers/user";
+
+import redis from "redis";
+import session from "express-session";
+import connectRedis from "connect-redis";
+import { __prod__ } from "./constants";
+import { MyContext } from "./types";
 
 const main = async () => {
   // connect to db
   const orm = await MikroORM.init(mikroConfig);
   // run migrations here in code instead of cli
   await orm.getMigrator().up();
-  // run sql commands
-  //  create instance of post
-  // const post = orm.em.create(Post, { title: "my first post" });
-  // insert post into the database
-  // await orm.em.persistAndFlush(post);
-
-  // find all posts
-  // const posts = await orm.em.find(Post, {});
-  // console.log(posts);
 
   const app = express();
 
-  const server = new ApolloServer({
+  let RedisStore = connectRedis(session);
+  let redisClient = redis.createClient();
+
+  app.use(
+    session({
+      name: "qid",
+      store: new RedisStore({
+        client: redisClient,
+        disableTouch: true,
+      }),
+      cookie: {
+        maxAge: 1000 * 60 * 60 * 24 * 365 * 1, // 1 year
+        httpOnly: true,
+        sameSite: "lax", //csrf
+        secure: __prod__, // cookie only works in https
+      },
+      saveUninitialized: false,
+      secret: "surfsup_dawg",
+      resave: false,
+    })
+  );
+  const apolloServer = new ApolloServer({
     schema: await buildSchema({
-      resolvers: [HelloResolver, PostResolver],
+      resolvers: [HelloResolver, PostResolver, UserResolver],
       validate: false,
     }),
-    // typeDefs,
-    // resolvers,
-    context: () => ({
+    context: ({ req, res }): MyContext => ({
       em: orm.em,
+      req,
+      res,
     }),
   });
-  server.applyMiddleware({ app });
+  apolloServer.applyMiddleware({ app });
 
   const PORT = 4000;
 
-  //*
-  //* My boilerplate error-handler
-  app.use((err, req, res, next) => {
-    const defaultErr = {
-      log: "Express error handler caught unknown middleware error",
-      status: 400,
-      message: { err: "An error occurred" },
-    };
-    const errorObj = Object.assign({}, defaultErr, err);
-    console.log(errorObj.log);
-    return res.status(errorObj.status).json(errorObj.message);
-  });
+  // //*
+  // //* My boilerplate error-handler
+  // app.use((err, req, res, next) => {
+  //   const defaultErr = {
+  //     log: "Express error handler caught unknown middleware error",
+  //     status: 400,
+  //     message: { err: "An error occurred" },
+  //   };
+  //   const errorObj = Object.assign({}, defaultErr, err);
+  //   console.log(errorObj.log);
+  //   return res.status(errorObj.status).json(errorObj.message);
+  // });
 
   // The `listen` method launches a web server.
   app.listen({ port: PORT }, () =>
-    console.log(`🚀 Server ready at http://localhost:4000${server.graphqlPath}`)
+    console.log(
+      `🚀 Server ready at http://localhost:4000${apolloServer.graphqlPath}`
+    )
   );
 };
 
