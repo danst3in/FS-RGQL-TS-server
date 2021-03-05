@@ -13,6 +13,7 @@ import session from "express-session";
 import connectRedis from "connect-redis";
 import { __prod__ } from "./constants";
 import { MyContext } from "./types";
+import cors from "cors";
 
 const main = async () => {
   // connect to db
@@ -24,6 +25,9 @@ const main = async () => {
 
   let RedisStore = connectRedis(session);
   let redisClient = redis.createClient();
+
+  // use cors middleware instead of Apollo
+  app.use(cors({ origin: "http://localhost:3000", credentials: true }));
 
   app.use(
     session({
@@ -54,7 +58,10 @@ const main = async () => {
       res,
     }),
   });
-  apolloServer.applyMiddleware({ app });
+  apolloServer.applyMiddleware({
+    app,
+    cors: false,
+  });
 
   const PORT = 4000;
 
