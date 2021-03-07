@@ -11,6 +11,7 @@ import {
   Resolver,
 } from "type-graphql";
 import argon2 from "argon2";
+import { EntityManager } from "@mikro-orm/postgresql";
 
 // used for arguments
 @InputType()
@@ -77,12 +78,20 @@ export class UserResolver {
       };
     }
     const hashedPassword = await argon2.hash(options.password);
-    const user = em.create(User, {
-      username: options.username,
-      password: hashedPassword,
-    });
+    let user;
     try {
-      await em.persistAndFlush(user);
+      const result = await (em as EntityManager)
+        .createQueryBuilder(User)
+        .getKnexQuery()
+        .insert({
+          username: options.username,
+          password: hashedPassword,
+          created_at: new Date(),
+          updated_at: new Date(),
+        })
+        .returning("*");
+      user = result[0];
+      console.log("🚀 ~ file: user.ts ~ line 94 ~ UserResolver ~ user", user);
     } catch (error) {
       console.log("ERROR: ", error);
       console.log("ERROR: ", error.message);
@@ -102,7 +111,12 @@ export class UserResolver {
     // set cookie on user and keep them logged in
     req.session.userId = user.id;
 
+    console.log("🚀 ~ file: user.ts ~ line 114 ~ UserResolver ~ user", user);
+    console.log("🚀 ~ file: user.ts ~ line 115 ~ UserResolver ~ {user}", {
+      user,
+    });
     return { user };
+    // return { user: user };
   }
 
   @Mutation(() => UserResponse)
